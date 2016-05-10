@@ -19,14 +19,15 @@ In order to see all of the Bluetooth Advertisements around you, you must create 
 #### By packet data
 There are many ways to filter an advertisement by the data it contains. The `watcher.AdvertisementFilter` property provides many choices. Here, we show how to filter advertisements by manufacturer id (in this case, Microsoft!)
 
-`var manufacturerData = new BluetoothLEManufacturerData()`<br>
-`manufacturerData.CompanyId = 0x0006`<br>
+`var manufacturerData = new BluetoothLEManufacturerData();`<br>
+`manufacturerData.CompanyId = 0x0006;`<br>
+`watcher.AdvertisementFilter.Advertisement.ManufacturerData.Add(manufacturerData);`<br>
 
 If you wanted to be even more specific, say you were making both Bluetooth watches and refridgerators and you only wanted to listen for watches, you could make your manufacturer filter more specific.
 
 `var writer = new DataWriter();`<br>
 `writer.WriteUInt16(0x1234); // Some product identifier`<br> 
-`manufactuererData.Data = writer.DetachBuffer();`
+`manufactuererData.Data = writer.DetachBuffer();`<br>
 
 #### In range
 Sometimes you only want to receive advertisements when a device is within a certain distance. With the following, the watcher will only fire when advertisements with RSSI >= -70dBm are seen.
