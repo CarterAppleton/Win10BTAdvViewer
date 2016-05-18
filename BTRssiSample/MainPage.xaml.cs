@@ -1,33 +1,24 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
-using System.Threading;
 using Windows.Devices.Bluetooth.Advertisement;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
-using Windows.UI.Xaml.Controls.Primitives;
-using Windows.UI.Xaml.Data;
-using Windows.UI.Xaml.Input;
-using Windows.UI.Xaml.Media;
-using Windows.UI.Xaml.Navigation;
-
-// The Blank Page item template is documented at http://go.microsoft.com/fwlink/?LinkId=402352&clcid=0x409
 
 namespace BTRssiSample
 {
     /// <summary>
-    /// An empty page that can be used on its own or navigated to within a Frame.
+    /// Display all BTLE Beacons that we see
     /// </summary>
     public sealed partial class MainPage : Page
     {
+        // Advertisement Watcher
         private BluetoothLEAdvertisementWatcher watcher;
+
+        // Whether or not we show devices lacking a friendly name
         private bool showNamelessDevices = false;
 
+        // Remember advertisements by their Bluetooth Address so we don't show duplicate devices
         private Dictionary<ulong, AdvertisingDevice> seenAdvertisements = new Dictionary<ulong, AdvertisingDevice>();
 
         public MainPage()
@@ -41,21 +32,26 @@ namespace BTRssiSample
             if (this.watcher == null)
             {
                 this.watcher = new BluetoothLEAdvertisementWatcher();
+
+                // Use .Active so we always request a scan response and get the friendly name
                 this.watcher.ScanningMode = BluetoothLEScanningMode.Active;
+
+                // If we haven't seen an advertisement for 3 seconds, consider the device out of range
                 watcher.SignalStrengthFilter.OutOfRangeTimeout = TimeSpan.FromMilliseconds(3000);
+
+                // If we see an advertisement from a device with an RSSI less than -120, consider it out of range
                 watcher.SignalStrengthFilter.OutOfRangeThresholdInDBm = -120;
+
+                // Register our callbacks
                 watcher.Received += OnAdvertisementReceived;
-
                 watcher.Stopped += OnAdvertisementWatcherStopped;
-
-                System.Diagnostics.Debug.WriteLine("Advertisement watcher started");
-
             }
 
             watcher.Start();
 
+            // Start updating the advertisement list UI every 0.5 seconds
             DispatcherTimer timer = new DispatcherTimer();
-            timer.Tick += new EventHandler<object>(UpdateAdvertisementList2);
+            timer.Tick += new EventHandler<object>(UpdateAdvertisementList);
             timer.Interval = new TimeSpan(0, 0, 0, 0, 500);
             timer.Start();
         }
@@ -80,8 +76,9 @@ namespace BTRssiSample
             // The local name of the advertising device contained within the payload, if any
             string localName = eventArgs.Advertisement.LocalName;
 
+            // Create a new AdvertisingDevice or update an old one if we've already seen this device
             var deviceData = new AdvertisingDevice();
-            if(this.seenAdvertisements.ContainsKey(addr))
+            if (this.seenAdvertisements.ContainsKey(addr))
             {
                 deviceData = this.seenAdvertisements[addr];
             }
@@ -90,17 +87,12 @@ namespace BTRssiSample
             deviceData.TimeStamp = timestamp;
             deviceData.BluetoothAddress = addr;
             this.seenAdvertisements[addr] = deviceData;
-
-            this.Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () =>
-            {
-                //this.UpdateAdvertisementList();
-            });
         }
 
         private void namelessDevicesToggle_Toggled(object sender, RoutedEventArgs e)
         {
             ToggleSwitch tSwitch = sender as ToggleSwitch;
-            if(tSwitch != null)
+            if (tSwitch != null)
             {
                 this.showNamelessDevices = tSwitch.IsOn;
             }
@@ -111,18 +103,13 @@ namespace BTRssiSample
             return DateTimeOffset.Now.ToUnixTimeSeconds() - eventArgs.TimeStamp.ToUnixTimeSeconds() > 300;
         }
 
-        private void UpdateAdvertisementList2(object sender, object e)
-        {
-            UpdateAdvertisementList();
-        }
-
-        private void UpdateAdvertisementList()
+        private void UpdateAdvertisementList(object sender, object e)
         {
             // Grab all the devices that we have seen
             var vals = this.seenAdvertisements.Values.ToList();
 
             // Filter the advertisements
-            vals.RemoveAll(delegate(AdvertisingDevice advertisingDevice)
+            vals.RemoveAll(delegate (AdvertisingDevice advertisingDevice)
             {
                 // If we only want to show named devices, remove all those without names
                 if (!this.showNamelessDevices && (advertisingDevice.LocalName == null || advertisingDevice.LocalName.Length == 0)) return true;
@@ -132,7 +119,7 @@ namespace BTRssiSample
             });
 
             // Sort the devices by RSSI- how "close" they are
-            vals.Sort(delegate(AdvertisingDevice arg1, AdvertisingDevice arg2)
+            vals.Sort(delegate (AdvertisingDevice arg1, AdvertisingDevice arg2)
             {
                 return arg2.RSSI.CompareTo(arg1.RSSI);
             });
@@ -163,18 +150,16 @@ namespace BTRssiSample
         public class AdvertisingDevice
         {
             public string LocalName { get; set; }
-            public string DisplayName { get{
+            public string DisplayName
+            {
+                get
+                {
                     return LocalName != null ? LocalName : "(Name Unknown)";
                 }
-                      }
-
+            }
             public short RSSI { get; set; }
             public DateTimeOffset TimeStamp { get; set; }
             public ulong BluetoothAddress { get; set; }
-
-
         }
     }
-
-
 }
